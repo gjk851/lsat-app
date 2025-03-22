@@ -1,0 +1,1311 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { Button } from './components/ui/button'; // Changed from @/ to relative path
+import { Input } from './components/ui/input';   // Changed from @/ to relative path
+import { Calendar } from './components/ui/calendar'; // Changed from @/ to relative path
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select'; // Changed from @/ to relative path
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './components/ui/card'; // Changed from @/ to relative path
+import { Alert, AlertDescription, AlertTitle } from './components/ui/alert';  // Changed from @/ to relative path
+import { AlertCircle, CheckCircle, CreditCard, Calendar as CalendarIcon, Users, Book, Phone, Mail, MapPin, BrainCircuit, GraduationCap, BookOpenCheck, Settings, ListChecks, User, BarChart, Check, Edit, Trash2, Save, X, PlusCircle, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { cn } from './lib/utils'; // Changed from @/ to relative path
+import { motion, AnimatePresence } from 'framer-motion';
+import { Textarea } from './components/ui/textarea'; // Changed from @/ to relative path
+
+// ===============================
+// Mock API Functions (Replace with actual API calls)
+// ===============================
+const mockAPI = {
+    getClasses: async () => {
+        // Simulate API call delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return [
+            { id: 'class-1', name: 'LSAT Prep Class A', schedule: 'Mon/Wed 6:00 PM', price: 800, description: 'Comprehensive LSAT preparation course.', curriculum: ['Introduction to LSAT', 'Logical Reasoning', 'Reading Comprehension', 'Logic Games'] },
+            { id: 'class-2', name: 'LSAT Prep Class B', schedule: 'Tue/Thu 7:00 PM', price: 800, description: 'Intensive course covering all LSAT sections.', curriculum: ['LSAT Fundamentals', 'Advanced LR', 'RC Strategies', 'LG Mastery'] },
+            { id: 'class-3', name: 'Advanced LSAT Strategy', schedule: 'Sat 10:00 AM', price: 950, description: 'For students aiming for top scores.', curriculum: ['Strategic Thinking', 'LR Deep Dive', 'RC Techniques', 'LG Algorithm'] },
+        ];
+    },
+    getTutors: async () => {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return [
+            { id: 'tutor-1', name: 'Dr. Jane Smith', bio: 'Expert in Logical Reasoning with 10+ years of experience.', rate: 150, specialties: ['Logical Reasoning', 'Reading Comprehension'], education: 'Ph.D. in Philosophy', experience: '15 years', certifications: ['LSAT Instructor Certification'] },
+            { id: 'tutor-2', name: 'John Doe', bio: 'Specialist in Reading Comprehension and test-taking strategies.', rate: 120, specialties: ['Reading Comprehension', 'Test-Taking Strategies'], education: 'M.A. in English', experience: '10 years', certifications: ['Certified LSAT Tutor'] },
+            { id: 'tutor-3', name: 'Alice Johnson', bio: 'Top performer in Logic Games, dedicated to helping students excel.', rate: 130, specialties: ['Logic Games', 'Analytical Thinking'], education: 'B.S. in Mathematics', experience: '8 years', certifications: [] },
+        ];
+    },
+    getUsers: async () => {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return [
+            { id: 'user-1', name: 'Alice', email: 'alice@example.com', role: 'student', joined: '2023-01-15', lastLogin: '2024-02-20' },
+            { id: 'user-2', name: 'Bob', email: 'bob@example.com', role: 'tutor', joined: '2022-11-01', lastLogin: '2024-02-18' },
+            { id: 'user-3', name: 'Charlie', email: 'charlie@example.com', role: 'admin', joined: '2022-09-01', lastLogin: '2024-02-22' },
+            { id: 'user-4', name: 'David', email: 'david@example.com', role: 'student', joined: '2023-03-20', lastLogin: '2024-02-15' },
+            { id: 'user-5', name: 'Eve', email: 'eve@example.com', role: 'tutor', joined: '2023-05-10', lastLogin: '2024-02-19' },
+        ];
+    },
+    createClass: async (newClass) => {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return { ...newClass, id: `class-${Date.now()}` }; // Mock ID
+    },
+    updateClass: async (id, updatedClass) => {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return { ...updatedClass, id };
+    },
+    deleteClass: async (id) => {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        // Simulate deletion
+    },
+    createTutor: async (newTutor) => {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return { ...newTutor, id: `tutor-${Date.now()}` };
+    },
+    updateTutor: async (id, updatedTutor) => {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return { ...updatedTutor, id };
+    },
+    deleteTutor: async (id) => {
+        await new Promise(resolve => setTimeout(resolve, 500));
+    },
+    createUser: async (newUser) => {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return { ...newUser, id: `user-${Date.now()}`, joined: new Date().toISOString().split('T')[0], lastLogin: new Date().toISOString().split('T')[0] };
+    },
+    updateUser: async (id, updatedUser) => {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return { ...updatedUser, id };
+    },
+    deleteUser: async (id) => {
+        await new Promise(resolve => setTimeout(resolve, 500));
+    },
+    updateProgress: async (userId, classId, progress) => {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        // In a real app, you'd send this to the server
+        console.log(`Updating progress for user ${userId}, class ${classId}: ${progress}`);
+    },
+    submitForm: async (formData) => {
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate network delay
+        console.log('Form Data Submitted:', formData);
+        //  throw new Error("Failed to submit form"); //Uncomment to test error
+    }
+};
+
+// ===============================
+// Animation Variants
+// ===============================
+const cardVariants = {
+    hidden: { opacity: 0, y: 50 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeInOut' } },
+    exit: { opacity: 0, y: -50, transition: { duration: 0.3 } },
+};
+
+// ===============================
+// Components
+// ===============================
+
+// Improved Name Suggestion
+const platformName = "Synapse LSAT";
+
+// --- Main App Component ---
+const ThreePassLSAT = () => {
+    const [isSignUp, setIsSignUp] = useState(false);
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [selectedClass, setSelectedClass] = useState(null);
+    const [selectedTutor, setSelectedTutor] = useState(null);
+    const [tutoringDate, setTutoringDate] = useState(undefined);
+    const [paymentMethod, setPaymentMethod] = useState('card');
+    const [cardNumber, setCardNumber] = useState('');
+    const [cardExpiry, setCardExpiry] = useState('');
+    const [cardCvc, setCardCvc] = useState('');
+    const [paypalEmail, setPaypalEmail] = useState('');
+    const [isSubscribed, setIsSubscribed] = useState(false); // New state for subscription
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submissionError, setSubmissionError] = useState(null);
+    const [submissionSuccess, setSubmissionSuccess] = useState(false);
+
+    // --- GUI State ---
+    const [showGUI, setShowGUI] = useState(false);
+    const [guiClasses, setGuiClasses] = useState([]);
+    const [guiTutors, setGuiTutors] = useState([]);
+    const [guiUsers, setGuiUsers] = useState([]); // Mock user data.
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [userProgress, setUserProgress] = useState({}); // { userId: { classId: progress } }
+    const [editingClass, setEditingClass] = useState(null);
+    const [editingTutor, setEditingTutor] = useState(null);
+    const [expandedClassId, setExpandedClassId] = useState(null); // For expanding class details
+    const [loading, setLoading] = useState(false);
+
+    // --- Initial Data Loading ---
+    useEffect(() => {
+        const loadInitialData = async () => {
+            setLoading(true);
+            try {
+                const classes = await mockAPI.getClasses();
+                const tutors = await mockAPI.getTutors();
+                const users = await mockAPI.getUsers();  // Load users as well
+                setGuiClasses(classes);
+                setGuiTutors(tutors);
+                setGuiUsers(users);
+            } catch (error) {
+                console.error("Failed to load initial data:", error);
+                // Handle error (e.g., show error message to user)
+            } finally {
+                setLoading(false);
+            }
+        };
+        if (showGUI) { //Only load when in GUI mode
+            loadInitialData();
+        }
+    }, [showGUI]);
+
+    // --- GUI Handlers ---
+    const handleAddClass = async (newClass) => {
+        try {
+            const createdClass = await mockAPI.createClass(newClass);
+            setGuiClasses([...guiClasses, createdClass]);
+            setEditingClass(null);
+        } catch (error) {
+            console.error("Error adding class:", error);
+            // Handle error
+        }
+    };
+
+    const handleUpdateClass = async (id, updatedClass) => {
+        try {
+            const updated = await mockAPI.updateClass(id, updatedClass);
+            setGuiClasses(guiClasses.map(c => c.id === id ? updated : c));
+            setEditingClass(null);
+        } catch (error) {
+            console.error("Error updating class:", error);
+        }
+    };
+
+    const handleDeleteClass = async (id) => {
+        try {
+            await mockAPI.deleteClass(id);
+            setGuiClasses(guiClasses.filter(c => c.id !== id));
+            setEditingClass(null);
+        } catch (error) {
+            console.error("Error deleting class:", error);
+        }
+    };
+
+    const handleAddTutor = async (newTutor) => {
+        try {
+            const createdTutor = await mockAPI.createTutor(newTutor);
+            setGuiTutors([...guiTutors, createdTutor]);
+            setEditingTutor(null);
+        } catch (error) {
+            console.error("Error adding tutor:", error);
+        }
+    };
+
+    const handleUpdateTutor = async (id, updatedTutor) => {
+        try {
+            const updated = await mockAPI.updateTutor(id, updatedTutor);
+            setGuiTutors(guiTutors.map(t => t.id === id ? updated : t));
+            setEditingTutor(null);
+        } catch (error) {
+            console.error("Error updating tutor:", error);
+        }
+    };
+
+    const handleDeleteTutor = async (id) => {
+        try {
+            await mockAPI.deleteTutor(id);
+            setGuiTutors(guiTutors.filter(t => t.id !== id));
+            setEditingTutor(null);
+        } catch (error) {
+            console.error("Error deleting tutor:", error);
+        }
+    };
+
+    // Mock User Management
+    const handleGetUsers = async () => {
+        setLoading(true);
+        try {
+            const users = await mockAPI.getUsers();
+            setGuiUsers(users);
+        } catch (error) {
+            console.error("Failed to fetch users:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCreateUser = async (newUser) => {
+        try {
+            const createdUser = await mockAPI.createUser(newUser);
+            setGuiUsers([...guiUsers, createdUser]);
+        } catch (error) {
+            console.error("Error creating user:", error);
+        }
+    };
+
+    const handleUpdateUser = async (id, updatedUser) => {
+        try {
+            const updatedUserResult = await mockAPI.updateUser(id, updatedUser);
+            setGuiUsers(guiUsers.map(user => user.id === id ? updatedUserResult : user));
+        } catch (error) {
+            console.error("Error updating user:", error);
+        }
+    };
+
+    const handleDeleteUser = async (id) => {
+        try {
+            await mockAPI.deleteUser(id);
+            setGuiUsers(guiUsers.filter(user => user.id !== id));
+        } catch (error) {
+            console.error("Error deleting user:", error);
+        }
+    };
+
+    // --- Progress Tracking ---
+    const handleUpdateProgress = async (userId, classId, progress) => {
+        try {
+            await mockAPI.updateProgress(userId, classId, progress);
+            setUserProgress(prevProgress => ({
+                ...prevProgress,
+                [userId]: {
+                    ...prevProgress[userId],
+                    [classId]: progress,
+                },
+            }));
+        } catch (error) {
+            console.error("Error updating progress:", error);
+        }
+    };
+
+    const getProgress = (userId, classId) => {
+        return userProgress[userId]?.[classId] || 0;
+    };
+
+    // Form Validation
+    const validateForm = useCallback(() => {
+        if (!name.trim() || !email.trim() || !password.trim()) {
+            return 'All fields are required.';
+        }
+        if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i.test(email)) {
+            return 'Invalid email address.';
+        }
+        if (isSignUp && password.length < 6) {
+            return 'Password must be at least 6 characters long.';
+        }
+        if (selectedClass && !selectedTutor && !isSubscribed) { // Allow class/tutor OR subscription
+            return 'Please select a class and tutor, or subscribe to the content library.';
+        }
+        if (selectedTutor && !tutoringDate) {
+            return 'Please select a date for the tutoring session.';
+        }
+        if (paymentMethod === 'card' && (!cardNumber.trim() || !cardExpiry.trim() || !cardCvc.trim())) {
+            return 'Please fill in all card details.';
+        }
+        if (paymentMethod === 'paypal' && !paypalEmail.trim()) {
+            return 'Please enter your PayPal email.';
+        }
+        if (paymentMethod === 'subscription' && !isSubscribed) {
+            return 'Please choose to subscribe or not';
+        }
+        return null;
+    }, [name, email, password, isSignUp, selectedClass, selectedTutor, tutoringDate, paymentMethod, cardNumber, cardExpiry, cardCvc, paypalEmail, isSubscribed]);
+
+    // Handle Submission
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        setSubmissionError(null);
+        setSubmissionSuccess(false);
+
+        const error = validateForm();
+        if (error) {
+            setSubmissionError(error);
+            setIsSubmitting(false);
+            return;
+        }
+
+        const formData = {
+            name,
+            email,
+            password,
+            selectedClass,
+            selectedTutor,
+            tutoringDate,
+            paymentMethod,
+            cardNumber,
+            cardExpiry,
+            cardCvc,
+            paypalEmail,
+            isSubscribed
+        };
+
+        try {
+            await mockAPI.submitForm(formData);
+            setSubmissionSuccess(true);
+            // Reset form
+            setName('');
+            setEmail('');
+            setPassword('');
+            setSelectedClass(null);
+            setSelectedTutor(null);
+            setTutoringDate(undefined);
+            setPaymentMethod('card');
+            setCardNumber('');
+            setCardExpiry('');
+            setCardCvc('');
+            setPaypalEmail('');
+            setIsSubscribed(false);
+
+        } catch (err) {
+            setSubmissionError(err.message || 'An error occurred.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    // --- GUI Components ---
+
+    const ClassManagement = () => {
+        return (
+            <div className="space-y-4">
+                <h3 className="text-xl font-semibold">Class Management</h3>
+                {loading ? (
+                    <div className="flex justify-center items-center h-24">
+                        <Loader2 className="animate-spin text-gray-400 w-8 h-8" />
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {guiClasses.map(c => (
+                            <Card key={c.id} className="bg-white/5 backdrop-blur-md border border-white/10 shadow-lg">
+                                <CardHeader>
+                                    <CardTitle className="text-white flex justify-between items-start">
+                                        <div>{c.name}</div>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => setEditingClass(c.id)}
+                                                className="text-blue-400 hover:text-blue-300"
+                                            >
+                                                <Edit className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => handleDeleteClass(c.id)}
+                                                className="text-red-400 hover:text-red-300"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => setExpandedClassId(expandedClassId === c.id ? null : c.id)}
+                                                className="text-gray-400 hover:text-gray-300"
+                                            >
+                                                {expandedClassId === c.id ? (
+                                                    <ChevronUp className="w-4 h-4" />
+                                                ) : (
+                                                    <ChevronDown className="w-4 h-4" />
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </CardTitle>
+                                    <CardDescription className="text-gray-300">{c.schedule}</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-gray-200">{c.description}</p>
+                                    <p className="text-yellow-400 font-semibold mt-2">Price: ${c.price}</p>
+                                    {expandedClassId === c.id && (
+                                        <div className="mt-4">
+                                            <h4 className="font-semibold text-gray-200">Curriculum:</h4>
+                                            <ul className="list-disc list-inside text-gray-300">
+                                                {c.curriculum.map((item, index) => (
+                                                    <li key={index}>{item}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </CardContent>
+                                {editingClass === c.id && (
+                                    <CardFooter className="flex flex-col gap-4">
+                                        <Input
+                                            id={`edit-class-name-${c.id}`}
+                                            value={c.name}
+                                            onChange={(e) => handleUpdateClass(c.id, { ...c, name: e.target.value })}
+                                            placeholder="Class Name"
+                                            className="bg-black/20 text-white border-gray-700"
+                                        />
+                                        <Input
+                                            id={`edit-class-schedule-${c.id}`}
+                                            value={c.schedule}
+                                            onChange={(e) => handleUpdateClass(c.id, { ...c, schedule: e.target.value })}
+                                            placeholder="Schedule"
+                                            className="bg-black/20 text-white border-gray-700"
+                                        />
+                                        <Textarea
+                                            id={`edit-class-description-${c.id}`}
+                                            value={c.description}
+                                            onChange={(e) => handleUpdateClass(c.id, { ...c, description: e.target.value })}
+                                            placeholder="Description"
+                                            className="bg-black/20 text-white border-gray-700"
+                                        />
+                                        <Input
+                                            id={`edit-class-price-${c.id}`}
+                                            type="number"
+                                            value={c.price}
+                                            onChange={(e) => handleUpdateClass(c.id, { ...c, price: Number(e.target.value) })}
+                                            placeholder="Price"
+                                            className="bg-black/20 text-white border-gray-700"
+                                        />
+                                        <Textarea
+                                            id={`edit-class-curriculum-${c.id}`}
+                                            value={c.curriculum.join(',')}
+                                            onChange={(e) => handleUpdateClass(c.id, { ...c, curriculum: e.target.value.split(',').map((s) => s.trim()) })}
+                                            placeholder="Curriculum (comma-separated)"
+                                            className="bg-black/20 text-white border-gray-700"
+                                        />
+                                        <div className="flex justify-end gap-2">
+                                            <Button
+                                                onClick={() => setEditingClass(null)}
+                                                className="bg-gray-700 hover:bg-gray-600 text-white"
+                                            >
+                                                <X className="w-4 h-4 mr-2" />
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                onClick={() => handleUpdateClass(c.id, {
+                                                    name: (document.getElementById(`edit-class-name-${c.id}`)).value,
+                                                    schedule: (document.getElementById(`edit-class-schedule-${c.id}`)).value,
+                                                    description: (document.getElementById(`edit-class-description-${c.id}`)).value,
+                                                    price: Number((document.getElementById(`edit-class-price-${c.id}`)).value),
+                                                    curriculum: (document.getElementById(`edit-class-curriculum-${c.id}`)).value.split(',').map((s) => s.trim()),
+                                                })}
+                                                className="bg-green-500 hover:bg-green-600 text-white"
+                                            >
+                                                <Save className="w-4 h-4 mr-2" />
+                                                Save
+                                            </Button>
+                                        </div>
+                                    </CardFooter>
+                                )}
+                            </Card>
+                        ))}
+                    </div>
+                )}
+                {/* Add New Class */}
+                {editingClass === 'new' ? (
+                    <Card className="bg-white/5 backdrop-blur-md border border-white/10 shadow-lg">
+                        <CardHeader>
+                            <CardTitle className="text-white">Add New Class</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <Input
+                                id="new-class-name"
+                                placeholder="Class Name"
+                               className="bg-black/20 text-white border-gray-700"
+                            />
+                            <Input
+                                id="new-class-schedule"
+                                placeholder="Schedule"
+                                className="bg-black/20 text-white border-gray-700"
+                            />
+                            <Textarea
+                                id="new-class-description"
+                                placeholder="Description"
+                                className="bg-black/20 text-white border-gray-700"
+                            />
+                            <Input
+                                id="new-class-price"
+                                type="number"
+                                placeholder="Price"
+                                className="bg-black/20 text-white border-gray-700"
+                            />
+                            <Textarea
+                                id="new-class-curriculum"
+                                placeholder="Curriculum (comma-separated)"
+                                className="bg-black/20 text-white border-gray-700"
+                            />
+                        </CardContent>
+                        <CardFooter className="flex justify-end gap-2">
+                            <Button
+                                onClick={() => setEditingClass(null)}
+                                className="bg-gray-700 hover:bg-gray-600 text-white"
+                            >
+                                <X className="w-4 h-4 mr-2" />
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={() => handleAddClass({
+                                    name: (document.getElementById('new-class-name')).value,
+                                    schedule: (document.getElementById('new-class-schedule')).value,
+                                    description: (document.getElementById('new-class-description')).value,
+                                    price: Number((document.getElementById('new-class-price')).value),
+                                    curriculum: (document.getElementById('new-class-curriculum')).value.split(',').map((s) => s.trim()),
+                                })}
+                                className="bg-green-500 hover:bg-green-600 text-white"
+                            >
+                                <PlusCircle className="w-4 h-4 mr-2" />
+                                Add
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                ) : (
+                    <Button
+                        onClick={() => setEditingClass('new')}
+                        className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400"
+                    >
+                        <PlusCircle className="w-4 h-4 mr-2" />
+                        Add New Class
+                    </Button>
+                )}
+            </div>
+        );
+    };
+
+    const TutorManagement = () => {
+        return (
+            <div className="space-y-4">
+                <h3 className="text-xl font-semibold">Tutor Management</h3>
+                {loading ? (
+                    <div className="flex justify-center items-center h-24">
+                        <Loader2 className="animate-spin text-gray-400 w-8 h-8" />
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {guiTutors.map(t => (
+                            <Card key={t.id} className="bg-white/5 backdrop-blur-md border border-white/10 shadow-lg">
+                                <CardHeader>
+                                    <CardTitle className="text-white flex justify-between items-start">
+                                        <div>{t.name}</div>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => setEditingTutor(t.id)}
+                                                className="text-blue-400 hover:text-blue-300"
+                                            >
+                                                <Edit className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => handleDeleteTutor(t.id)}
+                                                className="text-red-400 hover:text-red-300"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+
+                                    </CardTitle>
+                                    <CardDescription className="text-gray-300">Rate: ${t.rate}/hour</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-gray-200">{t.bio}</p>
+                                    <div className="mt-4">
+                                        <h4 className="font-semibold text-gray-200">Specialties:</h4>
+                                        <ul className="list-disc list-inside text-gray-300 flex gap-4">
+                                            {t.specialties.map((s, index) => (
+                                                <li key={index}>{s}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                    <div className="mt-4">
+                                        <h4 className="font-semibold text-gray-200">Education:</h4>
+                                        <p className="text-gray-300">{t.education}</p>
+                                    </div>
+                                    <div className="mt-4">
+                                        <h4 className="font-semibold text-gray-200">Experience:</h4>
+                                        <p className="text-gray-300">{t.experience}</p>
+                                    </div>
+                                    {t.certifications && t.certifications.length > 0 && (
+                                        <div className="mt-4">
+                                            <h4 className="font-semibold text-gray-200">Certifications:</h4>
+                                            <ul className="list-disc list-inside text-gray-300">
+                                                {t.certifications.map((c, index) => (
+                                                    <li key={index}>{c}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </CardContent>
+                                {editingTutor === t.id && (
+                                    <CardFooter className="flex flex-col gap-4">
+                                        <Input
+                                            id={`edit-tutor-name-${t.id}`}
+                                            value={t.name}
+                                            onChange={(e) => handleUpdateTutor(t.id, { ...t, name: e.target.value })}
+                                            placeholder="Tutor Name"
+                                            className="bg-black/20 text-white border-gray-700"
+                                        />
+                                        <Textarea
+                                            id={`edit-tutor-bio-${t.id}`}
+                                            value={t.bio}
+                                            onChange={(e) => handleUpdateTutor(t.id, { ...t, bio: e.target.value })}
+                                            placeholder="Bio"
+                                            className="bg-black/20 text-white border-gray-700"
+                                        />
+                                        <Input
+                                            id={`edit-tutor-rate-${t.id}`}
+                                            type="number"
+                                            value={t.rate}
+                                            onChange={(e) => handleUpdateTutor(t.id, { ...t, rate: Number(e.target.value) })}
+                                            placeholder="Rate ($/hour)"
+                                            className="bg-black/20 text-white border-gray-700"
+                                        />
+                                        <Textarea
+                                            id={`edit-tutor-specialties-${t.id}`}
+                                            value={t.specialties.join(',')}
+                                            onChange={(e) => handleUpdateTutor(t.id, { ...t, specialties: e.target.value.split(',').map((s) => s.trim()) })}
+                                            placeholder="Specialties (comma-separated)"
+                                            className="bg-black/20 text-white border-gray-700"
+                                        />
+                                        <Input
+                                            id={`edit-tutor-education-${t.id}`}
+                                            value={t.education}
+                                            onChange={(e) => handleUpdateTutor(t.id, { ...t, education: e.target.value })}
+                                            placeholder="Education"
+                                            className="bg-black/20 text-white border-gray-700"
+                                        />
+                                        <Input
+                                            id={`edit-tutor-experience-${t.id}`}
+                                            value={t.experience}
+                                            onChange={(e) => handleUpdateTutor(t.id, { ...t, experience: e.target.value })}
+                                            placeholder="Experience"
+                                            className="bg-black/20 text-white border-gray-700"
+                                        />
+                                        <Textarea
+                                            id={`edit-tutor-certifications-${t.id}`}
+                                            value={t.certifications ? t.certifications.join(',') : ''}
+                                            onChange={(e) => handleUpdateTutor(t.id, { ...t, certifications: e.target.value.split(',').map((s) => s.trim()) })}
+                                            placeholder="Certifications (comma-separated)"
+                                            className="bg-black/20 text-white border-gray-700"
+                                        />
+                                        <div className="flex justify-end gap-2">
+                                            <Button
+                                                onClick={() => setEditingTutor(null)}
+                                                className="bg-gray-700 hover:bg-gray-600 text-white"
+                                            >
+                                                <X className="w-4 h-4 mr-2" />
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                onClick={() => handleUpdateTutor(t.id, {
+                                                    name: (document.getElementById(`edit-tutor-name-${t.id}`)).value,
+                                                    bio: (document.getElementById(`edit-tutor-bio-${t.id}`)).value,
+                                                    rate: Number((document.getElementById(`edit-tutor-rate-${t.id}`)).value),
+                                                    specialties: (document.getElementById(`edit-tutor-specialties-${t.id}`)).value.split(',').map((s) => s.trim()),
+                                                    education: (document.getElementById(`edit-tutor-education-${t.id}`)).value,
+                                                    experience: (document.getElementById(`edit-tutor-experience-${t.id}`)).value,
+                                                    certifications: (document.getElementById(`edit-tutor-certifications-${t.id}`)).value.split(',').map((s) => s.trim()),
+                                                })}
+                                                className="bg-green-500 hover:bg-green-600 text-white"
+                                            >
+                                                <Save className="w-4 h-4 mr-2" />
+                                                Save
+                                            </Button>
+                                        </div>
+                                    </CardFooter>
+                                )}
+                            </Card>
+                        ))}
+                    </div>
+                )}
+                {/* Add New Tutor */}
+                {editingTutor === 'new' ? (
+                    <Card className="bg-white/5 backdrop-blur-md border border-white/10 shadow-lg">
+                        <CardHeader>
+                            <CardTitle className="text-white">Add New Tutor</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <Input
+                                id="new-tutor-name"
+                                placeholder="Tutor Name"
+                                className="bg-black/20 text-white border-gray-700"
+                            />
+                            <Textarea
+                                id="new-tutor-bio"
+                                placeholder="Bio"
+                                className="bg-black/20 text-white border-gray-700"
+                            />
+                            <Input
+                                id="new-tutor-rate"
+                                type="number"
+                                placeholder="Rate ($/hour)"
+                                className="bg-black/20 text-white border-gray-700"
+                            />
+                            <Textarea
+                                id="new-tutor-specialties"
+                                placeholder="Specialties (comma-separated)"
+                                className="bg-black/20 text-white border-gray-700"
+                            />
+                            <Input
+                                id="new-tutor-education"
+                                placeholder="Education"
+                                className="bg-black/20 text-white border-gray-700"
+                            />
+                            <Input
+                                id="new-tutor-experience"
+                                placeholder="Experience"
+                                className="bg-black/20 text-white border-gray-700"
+                            />
+                            <Textarea
+                                id="new-tutor-certifications"
+                                placeholder="Certifications (comma-separated)"
+                                className="bg-black/20 text-white border-gray-700"
+                            />
+                        </CardContent>
+                        <CardFooter className="flex justify-end gap-2">
+                            <Button
+                                onClick={() => setEditingTutor(null)}
+                                className="bg-gray-700 hover:bg-gray-600 text-white"
+                            >
+                                <X className="w-4 h-4 mr-2" />
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={() => handleAddTutor({
+                                    name: (document.getElementById('new-tutor-name')).value,
+                                    bio: (document.getElementById('new-tutor-bio')).value,
+                                    rate: Number((document.getElementById('new-tutor-rate')).value),
+                                    specialties: (document.getElementById('new-tutor-specialties')).value.split(',').map((s) => s.trim()),
+                                    education: (document.getElementById('new-tutor-education')).value,
+                                    experience: (document.getElementById('new-tutor-experience')).value,
+                                    certifications: (document.getElementById('new-tutor-certifications')).value.split(',').map((s) => s.trim()),
+                                })}
+                                className="bg-green-500 hover:bg-green-600 text-white"
+                            >
+                                <PlusCircle className="w-4 h-4 mr-2" />
+                                Add
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                ) : (
+                    <Button
+                        onClick={() => setEditingTutor('new')}
+                        className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400"
+                    >
+                        <PlusCircle className="w-4 h-4 mr-2" />
+                        Add New Tutor
+                    </Button>
+                )}
+            </div>
+        );
+    };
+
+    const UserManagement = () => {
+        const [newUser, setNewUser] = useState({ name: '', email: '', role: 'student' });
+        const [editingUserId, setEditingUserId] = useState(null);
+
+        const handleCreateNewUser = async () => {
+            await handleCreateUser(newUser);
+            setNewUser({ name: '', email: '', role: 'student' }); // Reset form
+        };
+
+        return (
+            <div className="space-y-4">
+                <h3 className="text-xl font-semibold">User Management</h3>
+                {loading ? (
+                    <div className="flex justify-center items-center h-24">
+                        <Loader2 className="animate-spin text-gray-400 w-8 h-8" />
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {guiUsers.map((user) => (
+                                <Card key={user.id} className="bg-white/5 backdrop-blur-md border border-white/10 shadow-lg">
+                                    <CardHeader>
+                                        <CardTitle className="text-white flex justify-between items-start">
+                                            <div>{user.name}</div>
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => setEditingUserId(user.id)}
+                                                    className="text-blue-400 hover:text-blue-300"
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => handleDeleteUser(user.id)}
+                                                    className="text-red-400 hover:text-red-300"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                        </CardTitle>
+                                        <CardDescription className="text-gray-300">
+                                            {user.email} | {user.role}
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <p className="text-gray-200">Joined: {user.joined}</p>
+                                        <p className="text-gray-200">Last Login: {user.lastLogin}</p>
+                                    </CardContent>
+                                    {editingUserId === user.id && (
+                                        <CardFooter className="flex flex-col gap-4">
+                                            <Input
+                                                id={`edit-user-name-${user.id}`}
+                                                value={user.name}
+                                                onChange={(e) => handleUpdateUser(user.id, { ...user, name: e.target.value })}
+                                                placeholder="Name"
+                                                className="bg-black/20 text-white border-gray-700"
+                                            />
+                                            <Input
+                                                id={`edit-user-email-${user.id}`}
+                                                value={user.email}
+                                                onChange={(e) => handleUpdateUser(user.id, { ...user, email: e.target.value })}
+                                                placeholder="Email"
+                                                className="bg-black/20 text-white border-gray-700"
+                                            />
+                                            <Select
+                                                value={user.role}
+                                                onValueChange={(value) => handleUpdateUser(user.id, { ...user, role: value })}
+                                            >
+                                                <SelectTrigger className="bg-black/20 text-white border-gray-700">
+                                                    <SelectValue placeholder="Role" />
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                                                    <SelectItem value="student" className="hover:bg-gray-700/50">Student</SelectItem>
+                                                    <SelectItem value="tutor" className="hover:bg-gray-700/50">Tutor</SelectItem>
+                                                    <SelectItem value="admin" className="hover:bg-gray-700/50">Admin</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <div className="flex justify-end gap-2">
+                                                <Button
+                                                    onClick={() => setEditingUserId(null)}
+                                                    className="bg-gray-700 hover:bg-gray-600 text-white"
+                                                >
+                                                    <X className="w-4 h-4 mr-2" />
+                                                    Cancel
+                                                </Button>
+                                                <Button
+                                                    onClick={() => handleUpdateUser(user.id, {
+                                                        name: (document.getElementById(`edit-user-name-${user.id}`)).value,
+                                                        email: (document.getElementById(`edit-user-email-${user.id}`)).value,
+                                                        role: (document.querySelector(`[data-value="${user.role}"]`)).innerText.toLowerCase(),
+                                                    })}
+                                                    className="bg-green-500 hover:bg-green-600 text-white"
+                                                >
+                                                    <Save className="w-4 h-4 mr-2" />
+                                                    Save
+                                                </Button>
+                                            </div>
+                                        </CardFooter>
+                                    )}
+                                </Card>
+                            ))}
+                        </div>
+                        {/* Add New User Form */}
+                        <Card className="bg-white/5 backdrop-blur-md border border-white/10 shadow-lg">
+                            <CardHeader>
+                                <CardTitle className="text-white">Add New User</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <Input
+                                    placeholder="Name"
+                                    value={newUser.name}
+                                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                                    className="bg-black/20 text-white border-gray-700"
+                                />
+                                <Input
+                                    placeholder="Email"
+                                    value={newUser.email}
+                                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                                    className="bg-black/20 text-white border-gray-700"
+                                />
+                                <Select
+                                    value={newUser.role}
+                                    onValueChange={(value) => setNewUser({ ...newUser, role: value })}
+                                >
+                                    <SelectTrigger className="bg-black/20 text-white border-gray-700">
+                                        <SelectValue placeholder="Role" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                                        <SelectItem value="student" className="hover:bg-gray-700/50">Student</SelectItem>
+                                        <SelectItem value="tutor" className="hover:bg-gray-700/50">Tutor</SelectItem>
+                                        <SelectItem value="admin" className="hover:bg-gray-700/50">Admin</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </CardContent>
+                            <CardFooter className="flex justify-end">
+                                <Button
+                                    onClick={handleCreateNewUser}
+                                    className="bg-green-500 hover:bg-green-600 text-white"
+                                >
+                                    <PlusCircle className="w-4 h-4 mr-2" />
+                                    Add User
+                                </Button>
+                            </CardFooter>
+                        </Card>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const ProgressTracking = () => {
+        const [selectedUserId, setSelectedUserId] = useState(null);
+        const [selectedClassId, setSelectedClassId] = useState(null);
+        const [currentProgress, setCurrentProgress] = useState(0);
+
+        const handleProgressSubmit = () => {
+            if (selectedUserId && selectedClassId) {
+                handleUpdateProgress(selectedUserId, selectedClassId, currentProgress);
+            }
+        };
+
+        return (
+            <div className="space-y-4">
+                <h3 className="text-xl font-semibold">Progress Tracking</h3>
+                {loading ? (
+                    <div className="flex justify-center items-center h-24">
+                        <Loader2 className="animate-spin text-gray-400 w-8 h-8" />
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        <Select onValueChange={setSelectedUserId} value={selectedUserId || undefined}>
+                            <SelectTrigger className="bg-black/20 text-white border-gray-700">
+                                <SelectValue placeholder="Select User" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                                {guiUsers.map(user => (
+                                    <SelectItem key={user.id} value={user.id} className="hover:bg-gray-700/50">
+                                        {user.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        <Select onValueChange={setSelectedClassId} value={selectedClassId || undefined}>
+                            <SelectTrigger className="bg-black/20 text-white border-gray-700">
+                                <SelectValue placeholder="Select Class" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                                {guiClasses.map(c => (
+                                    <SelectItem key={c.id} value={c.id} className="hover:bg-gray-700/50">
+                                        {c.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        <Input
+                            type="number"
+                            placeholder="Progress (0-100)"
+                            value={currentProgress}
+                            onChange={(e) => setCurrentProgress(Math.min(100, Math.max(0, parseInt(e.target.value, 10))))}
+                            className="bg-black/20 text-white border-gray-700"
+                        />
+
+                        <Button
+                            onClick={handleProgressSubmit}
+                            className="bg-blue-500 hover:bg-blue-600 text-white"
+                            disabled={!selectedUserId || !selectedClassId}
+                        >
+                            Update Progress
+                        </Button>
+
+                        {selectedUserId && selectedClassId && (
+                            <Card className="bg-white/5 backdrop-blur-md border border-white/10 shadow-lg">
+                                <CardHeader>
+                                    <CardTitle className="text-white">User Progress</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-gray-200">
+                                        Current Progress: {getProgress(selectedUserId, selectedClassId)}%
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black p-4 md:p-8">
+            <div className="max-w-4xl mx-auto space-y-8">
+                <div className="text-center">
+                    <h1 className="text-4xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+                        {platformName}
+                    </h1>
+                    <p className="text-gray-400 text-lg md:text-xl mt-4">
+                        Master the LSAT with personalized classes, tutoring, and a comprehensive content library.
+                    </p>
+                    <Button
+                        onClick={() => setShowGUI(!showGUI)} // Toggle GUI
+                        className="mt-6 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 border border-purple-500/30"
+                    >
+                        {showGUI ? 'Hide Admin GUI' : 'Show Admin GUI'}
+                    </Button>
+                </div>
+
+                {showGUI && (
+                    <div className="space-y-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <ClassManagement />
+                            <TutorManagement />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <UserManagement />
+                            <ProgressTracking />
+                        </div>
+                    </div>
+                )}
+
+                {!showGUI && (
+                    <Card className="bg-white/5 backdrop-blur-md border border-white/10 shadow-lg">
+                        <CardHeader>
+                            <CardTitle className="text-white text-2xl md:text-3xl">
+                                {isSignUp ? 'Sign Up' : 'Log In'}
+                            </CardTitle>
+                            <CardDescription className="text-gray-400">
+                                {isSignUp ? 'Create an account to get started.' : 'Welcome back! Please log in.'}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                <Input
+                                    type="text"
+                                    placeholder="Name"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    className="bg-black/20 text-white border-gray-700"
+                                />
+                                <Input
+                                    type="email"
+                                    placeholder="Email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="bg-black/20 text-white border-gray-700"
+                                />
+                                <Input
+                                    type="password"
+                                    placeholder="Password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="bg-black/20 text-white border-gray-700"
+                                />
+                                {isSignUp && (
+                                    <Select onValueChange={setSelectedClass} value={selectedClass || undefined}>
+                                        <SelectTrigger className="bg-black/20 text-white border-gray-700">
+                                            <SelectValue placeholder="Select a Class" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                                            {guiClasses.map(c => (
+                                                <SelectItem key={c.id} value={c.id} className="hover:bg-gray-700/50">
+                                                    {c.name} - {c.schedule}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
+
+                                {isSignUp && selectedClass && (
+                                    <Select onValueChange={setSelectedTutor} value={selectedTutor || undefined}>
+                                        <SelectTrigger className="bg-black/20 text-white border-gray-700">
+                                            <SelectValue placeholder="Select a Tutor" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                                            {guiTutors.map(t => (
+                                                <SelectItem key={t.id} value={t.id} className="hover:bg-gray-700/50">
+                                                    {t.name} - ${t.rate}/hour
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
+
+                                {selectedTutor && (
+                                    <div className="space-y-2">
+                                        <label htmlFor="tutoring-date" className="text-gray-300">
+                                            Tutoring Date:
+                                        </label>
+                                        <Calendar
+                                            id="tutoring-date"
+                                            mode="single"
+                                            selected={tutoringDate}
+                                            onSelect={setTutoringDate}
+                                            className="rounded-md border border-gray-700 bg-gray-800 text-white"
+                                        />
+                                    </div>
+                                )}
+
+                                {isSignUp && (
+                                    <div className="space-y-4">
+                                        <h4 className="text-gray-300 font-semibold">Payment Method:</h4>
+                                        <div className="flex gap-4">
+                                            <Button
+                                                variant={paymentMethod === 'card' ? 'default' : 'outline'}
+                                                onClick={() => setPaymentMethod('card')}
+                                                className={cn(
+                                                    "flex items-center gap-2",
+                                                    paymentMethod === 'card'
+                                                        ? "bg-blue-500 text-white"
+                                                        : "bg-black/20 text-gray-300 hover:bg-white/10"
+                                                )}
+                                            >
+                                                <CreditCard className="w-4 h-4" />
+                                                Credit Card
+                                            </Button>
+                                            <Button
+                                                variant={paymentMethod === 'paypal' ? 'default' : 'outline'}
+                                                onClick={() => setPaymentMethod('paypal')}
+                                                className={cn(
+                                                    "flex items-center gap-2",
+                                                    paymentMethod === 'paypal'
+                                                        ? "bg-blue-500 text-white"
+                                                        : "bg-black/20 text-gray-300 hover:bg-white/10"
+                                                )}
+
+                                            >
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    viewBox="0 0 25 25"
+                                                    fill="currentColor"
+                                                    className="w-4 h-4"
+                                                >
+                                                    <path d="M12.52 2.27c.6-3.32 7.55-3.32 8.14 0l.43 2.45a13.71 13.71 0 0 1 3.2 2.65c2.1 1.6 3.1 4.1 2.83 6.6l-2.72 15.3c-.16.85-.9 1.4-1.76 1.12l-6.4-1.82a17.5 17.5 0 0 1-5.9-1.82l-6.4 1.82c-.86.28-1.6-.27-1.76-1.12L.27 14.12c-.3-2.5.7-5 2.8-6.6a13.7 13.7 0 0 1 3.2-2.62l.45-2.45Z" fill="#003087" />
+                                                    <path d="M17.5 10.4c0 1.6-1 2.8-2.4 2.8h-.1c-.7 0-1.3-.4-1.6-1-.3 1.2-1.2 2-2.4 2h-.1c-1.4 0-2.4-.8-2.4-2.8s1-2.8 2.4-2.8h.1c.7 0 1.3.4 1.6 1 .3-1.2 1.2-2 2.4-2h.1c1.4 0 2.4.8 2.4 2.8Z" fill="#308cc6" />
+                                                    <path d="M7.4 10.4c0 1.6 1 2.8 2.4 2.8h.1c.7 0 1.3-.4 1.6-1 .3 1.2 1.2 2 2.4 2h.1c1.4 0 2.4-.8 2.4-2.8s-1-2.8-2.4-2.8h-.1c-.7 0-1.3.4-1.6 1-.3-1.2-1.2-2-2.4-2h-.1c-1.4 0-2.4.8-2.4 2.8Z" fill="#012169" />
+                                                </svg>
+                                                PayPal
+                                            </Button>
+                                            <Button
+                                                variant={paymentMethod === 'subscription' ? 'default' : 'outline'}
+                                                onClick={() => setPaymentMethod('subscription')}
+                                                className={cn(
+                                                    "flex items-center gap-2",
+                                                    paymentMethod === 'subscription'
+                                                        ? "bg-blue-500 text-white"
+                                                        : "bg-black/20 text-gray-300 hover:bg-white/10"
+                                                )}
+                                            >
+                                                <BookOpenCheck className="w-4 h-4" />
+                                                Subscription
+                                            </Button>
+                                        </div>
+
+                                        {paymentMethod === 'card' && (
+                                            <div className="space-y-2">
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Card Number"
+                                                    value={cardNumber}
+                                                    onChange={(e) => setCardNumber(e.target.value)}
+                                                    className="bg-black/20 text-white border-gray-700"
+                                                />
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <Input
+                                                        type="text"
+                                                        placeholder="Expiry (MM/YY)"
+                                                        value={cardExpiry}
+                                                        onChange={(e) => setCardExpiry(e.target.value)}
+                                                        className="bg-black/20 text-white border-gray-700"
+                                                    />
+                                                    <Input
+                                                        type="text"
+                                                        placeholder="CVC"
+                                                        value={cardCvc}
+                                                        onChange={(e) => setCardCvc(e.target.value)}
+                                                        className="bg-black/20 text-white border-gray-700"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {paymentMethod === 'paypal' && (
+                                            <Input
+                                                type="email"
+                                                placeholder="PayPal Email"
+                                                value={paypalEmail}
+                                                onChange={(e) => setPaypalEmail(e.target.value)}
+                                                className="bg-black/20 text-white border-gray-700"
+                                            />
+                                        )}
+                                        {paymentMethod === 'subscription' && (
+                                            <div className="flex items-center gap-4">
+                                                <label className="text-gray-300">
+                                                    Subscribe to the content library?
+                                                </label>
+                                                <Button
+                                                    variant={isSubscribed ? 'default' : 'outline'}
+                                                    onClick={() => setIsSubscribed(true)}
+                                                    className={cn(
+                                                        isSubscribed
+                                                            ? "bg-green-500 text-white"
+                                                            : "bg-black/20 text-gray-300 hover:bg-white/10"
+                                                    )}
+                                                >
+                                                    Yes
+                                                </Button>
+                                                <Button
+                                                    variant={!isSubscribed ? 'default' : 'outline'}
+                                                    onClick={() => setIsSubscribed(false)}
+                                                    className={cn(
+                                                        !isSubscribed
+                                                            ? "bg-red-500 text-white"
+                                                            : "bg-black/20 text-gray-300 hover:bg-white/10"
+                                                    )}
+                                                >
+                                                    No
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                <Button
+                                    type="submit"
+                                    className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white py-3 rounded-md hover:from-blue-600 hover:to-purple-600 transition-colors duration-300"
+                                    disabled={isSubmitting}
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Processing...
+                                        </>
+                                    ) : (
+                                        isSignUp ? 'Sign Up' : 'Log In'
+                                    )}
+                                </Button>
+                            </form>
+                            {submissionError && (
+                                <Alert variant="destructive" className="mt-4 bg-red-500/10 text-red-400 border-red-500/20">
+                                    <AlertCircle className="h-4 w-4" />
+                                    <AlertTitle>Error</AlertTitle>
+                                    <AlertDescription>{submissionError}</AlertDescription>
+                                </Alert>
+                            )}
+                            {submissionSuccess && (
+                                <Alert className="mt-4 bg-green-500/10 text-green-400 border-green-500/20">
+                                    <CheckCircle className="h-4 w-4" />
+                                    <AlertTitle>Success!</AlertTitle>
+                                    <AlertDescription>
+                                        {isSignUp
+                                            ? 'Your account has been created. Please log in.'
+                                            : 'You are now logged in.'}
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+                            <div className="mt-4 text-center text-gray-400">
+                                {isSignUp ? (
+                                    <button onClick={() => setIsSignUp(false)} className="text-blue-400 hover:underline">
+                                        Already have an account? Log In
+                                    </button>
+                                ) : (
+                                    <button onClick={() => setIsSignUp(true)} className="text-blue-400 hover:underline">
+                                        Create an account
+                                    </button>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
+        </div>
+    );
+};
+
+export default ThreePassLSAT;
